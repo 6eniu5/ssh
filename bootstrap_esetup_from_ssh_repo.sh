@@ -93,7 +93,7 @@ ensure_brew() {
 }
 
 ensure_ansible() {
-  if SKIP_PREINSTALLED_ANSIBLE -eq 1; then
+  if [[ "$SKIP_PREINSTALLED_ANSIBLE" -eq 1 ]]; then
     return 0
   fi
 
@@ -103,6 +103,28 @@ ensure_ansible() {
 
   log_info "Installing ansible (provides ansible-vault)..."
   brew install ansible
+}
+
+ensure_brew_writable() {
+  if ! command -v brew >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local bp
+  bp="$(brew --prefix 2>/dev/null || true)"
+  if [[ -z "$bp" ]]; then
+    return 0
+  fi
+
+  if [[ -w "$bp" ]]; then
+    return 0
+  fi
+
+  log_error "Homebrew prefix is not writable for this user: $bp"
+  echo "Run these commands once, then re-run this script:"
+  echo "  sudo chown -R $(id -un) \"$bp\""
+  echo "  chmod u+w \"$bp\""
+  exit 1
 }
 
 decrypt_key() {
@@ -171,6 +193,7 @@ main() {
 
   ensure_xcode_cli
   ensure_brew
+  ensure_brew_writable
   ensure_ansible
 
   decrypt_key
