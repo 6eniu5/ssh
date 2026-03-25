@@ -128,7 +128,7 @@ ensure_brew_writable() {
 }
 
 decrypt_key() {
-  if SKIP_DECRYPT -eq 1; then
+  if [[ "$SKIP_DECRYPT" -eq 1 ]]; then
     log_warn "Skipping decrypt step (--skip-decrypt)."
     return 0
   fi
@@ -184,8 +184,21 @@ run_esetup() {
   fi
 
   log_info "Running esetup/setup.sh..."
-  chmod +x "$ES_SETUP_DIR/esetup/setup.sh" 2>/dev/null || true
-  "$ES_SETUP_DIR/esetup/setup.sh"
+  if [[ -x "$ES_SETUP_DIR/setup.sh" ]]; then
+    chmod +x "$ES_SETUP_DIR/setup.sh" 2>/dev/null || true
+    "$ES_SETUP_DIR/setup.sh"
+    return 0
+  fi
+
+  if [[ -x "$ES_SETUP_DIR/esetup/setup.sh" ]]; then
+    chmod +x "$ES_SETUP_DIR/esetup/setup.sh" 2>/dev/null || true
+    "$ES_SETUP_DIR/esetup/setup.sh"
+    return 0
+  fi
+
+  log_error "Could not find setup.sh in cloned repo."
+  log_error "Checked: $ES_SETUP_DIR/setup.sh and $ES_SETUP_DIR/esetup/setup.sh"
+  exit 1
 }
 
 main() {
