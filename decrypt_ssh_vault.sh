@@ -122,3 +122,7 @@ if [[ "$SKIP_KNOWN_HOSTS" -eq 0 ]]; then
 fi
 
 echo "Done."
+
+if prompt_yes_no "Run optional SSH auth test (ssh -T git@github.com)?" n; then
+  ssh -T git@github.com || true
+fi
