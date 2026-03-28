@@ -125,7 +125,14 @@ echo "Done."
 
 if prompt_yes_no "Run optional SSH auth test (this key only, via ssh -i)?" n; then
   if [[ -f "$OUTPUT_KEY" ]]; then
-    ssh -i "$OUTPUT_KEY" -o IdentitiesOnly=yes -T git@github.com || true
+    # -F /dev/null bypasses ~/.ssh/config so its IdentityFile directives
+    # don't shadow the key we actually want to test.
+    ssh -F /dev/null \
+        -i "$OUTPUT_KEY" \
+        -o IdentitiesOnly=yes \
+        -o StrictHostKeyChecking=accept-new \
+        -o UserKnownHostsFile="$KNOWN_HOSTS_FILE" \
+        -T git@github.com || true
   else
     echo "Key not present at $OUTPUT_KEY; skipping test." >&2
   fi

@@ -166,15 +166,22 @@ decrypt_key() {
   "$decrypt_script" "${args[@]}"
 }
 
-configure_git_ssh_for_esetup_repo() {
+_6eniu5_ssh_command() {
+  # -F /dev/null: ignore ~/.ssh/config so its IdentityFile directives don't
+  #   override -i (see KNOWN_ISSUES.md "SSH key identity conflict").
+  echo "ssh -F /dev/null -i \"$ESETUP_SSH_IDENTITY\" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=\"$HOME/.ssh/known_hosts\""
+}
+
+configure_git_ssh_for_repo() {
+  local repo_dir="$1"
   if [[ ! -f "$ESETUP_SSH_IDENTITY" ]]; then
     return 0
   fi
-  if [[ ! -d "$ES_SETUP_DIR/.git" ]]; then
+  if [[ ! -d "$repo_dir/.git" ]]; then
     return 0
   fi
-  log_info "Configuring ${ES_SETUP_DIR} git to use ${ESETUP_SSH_IDENTITY} for SSH (per-repo only)."
-  git -C "$ES_SETUP_DIR" config core.sshCommand "ssh -i \"$ESETUP_SSH_IDENTITY\" -o IdentitiesOnly=yes"
+  log_info "Configuring ${repo_dir} git to use ${ESETUP_SSH_IDENTITY} for SSH (per-repo only)."
+  git -C "$repo_dir" config core.sshCommand "$(_6eniu5_ssh_command)"
 }
 
 clone_esetup() {
@@ -190,6 +197,13 @@ clone_esetup() {
   mkdir -p "$(dirname "$ES_SETUP_DIR")"
   log_info "Cloning esetup into ${ES_SETUP_DIR}..."
   git clone "$ES_SETUP_URL" "$ES_SETUP_DIR"
+
+  local ssh_url
+  ssh_url="$(printf '%s' "$ES_SETUP_URL" | sed -E 's|^https://github\.com/(.+)$|git@github.com:\1|')"
+  if [[ "$ssh_url" != "$ES_SETUP_URL" ]]; then
+    git -C "$ES_SETUP_DIR" remote set-url origin "$ssh_url"
+    log_info "Switched esetup remote to SSH: $ssh_url"
+  fi
 }
 
 run_esetup() {
@@ -225,8 +239,13 @@ main() {
   ensure_ansible
 
   decrypt_key
+
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  configure_git_ssh_for_repo "$script_dir"
+
   clone_esetup
-  configure_git_ssh_for_esetup_repo
+  configure_git_ssh_for_repo "$ES_SETUP_DIR"
   export ESETUP_SSH_IDENTITY
   export TARGET_DOTFILES="${TARGET_DOTFILES:-$HOME/6eniu5/dotfiles}"
   run_esetup
