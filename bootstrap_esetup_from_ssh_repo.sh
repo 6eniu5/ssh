@@ -5,6 +5,7 @@ ES_SETUP_URL="https://github.com/6eniu5/esetup.git"
 ES_SETUP_DIR="$HOME/esetup"
 VAULT_PASS=""
 VAULT_FILE="./id_ed25519.vault"
+ESETUP_SSH_IDENTITY="${ESETUP_SSH_IDENTITY:-$HOME/.ssh/6eniu5_id_ed25519}"
 
 SKIP_DECRYPT=0
 SKIP_RUN_SETUP=0
@@ -40,11 +41,15 @@ Usage: ./bootstrap_esetup_from_ssh_repo.sh [options]
 Options:
   --esetup-url URL           esetup git URL (default: https://github.com/6eniu5/esetup.git)
   --esetup-dir DIR          Where to clone and run esetup (default: ~/esetup)
+  --output-key PATH         Decrypted private key path (default: ~/.ssh/6eniu5_id_ed25519)
   --vault-pass PASS         ansible-vault password to decrypt id_ed25519.vault (optional)
   --vault-file PATH         Encrypted vault file (default: ./id_ed25519.vault)
   --skip-decrypt            Skip key decryption step
   --skip-setup              Skip running esetup/setup.sh (still clones)
   --help                    Show help
+
+Env:
+  ESETUP_SSH_IDENTITY       Same as --output-key if set (default ~/.ssh/6eniu5_id_ed25519)
 HELP
 }
 
@@ -54,6 +59,7 @@ while [[ $# -gt 0 ]]; do
     --esetup-dir) ES_SETUP_DIR="$2"; shift 2 ;;
     --vault-pass) VAULT_PASS="$2"; shift 2 ;;
     --vault-file) VAULT_FILE="$2"; shift 2 ;;
+    --output-key) ESETUP_SSH_IDENTITY="$2"; shift 2 ;;
     --skip-decrypt) SKIP_DECRYPT=1; shift ;;
     --skip-setup) SKIP_RUN_SETUP=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -150,16 +156,24 @@ decrypt_key() {
 
   local args=()
   args+=("--vault-file" "$VAULT_FILE")
+  args+=("--output-key" "$ESETUP_SSH_IDENTITY")
 
   if [[ -n "$VAULT_PASS" ]]; then
     args+=("--vault-pass" "$VAULT_PASS")
   fi
 
-  if [[ "${args[*]:-}" != "" ]]; then
-    "$decrypt_script" "${args[@]}"
-  else
-    "$decrypt_script"
+  "$decrypt_script" "${args[@]}"
+}
+
+configure_git_ssh_for_esetup_repo() {
+  if [[ ! -f "$ESETUP_SSH_IDENTITY" ]]; then
+    return 0
   fi
+  if [[ ! -d "$ES_SETUP_DIR/.git" ]]; then
+    return 0
+  fi
+  log_info "Configuring ${ES_SETUP_DIR} git to use ${ESETUP_SSH_IDENTITY} for SSH (per-repo only)."
+  git -C "$ES_SETUP_DIR" config core.sshCommand "ssh -i \"$ESETUP_SSH_IDENTITY\" -o IdentitiesOnly=yes"
 }
 
 clone_esetup() {
@@ -211,6 +225,8 @@ main() {
 
   decrypt_key
   clone_esetup
+  configure_git_ssh_for_esetup_repo
+  export ESETUP_SSH_IDENTITY
   run_esetup
 
   log_info "All steps complete."

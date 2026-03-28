@@ -2,7 +2,7 @@
 set -euo pipefail
 
 VAULT_FILE="./id_ed25519.vault"
-OUTPUT_KEY="$HOME/.ssh/id_ed25519"
+OUTPUT_KEY="$HOME/.ssh/6eniu5_id_ed25519"
 VAULT_PASS=""
 KNOWN_HOSTS_FILE="$HOME/.ssh/known_hosts"
 
@@ -30,7 +30,7 @@ Usage: ./decrypt_ssh_vault.sh [options]
 
 Options:
   --vault-file PATH     Encrypted vault file (default: ./id_ed25519.vault)
-  --output-key PATH    Output key path (default: ~/.ssh/id_ed25519)
+  --output-key PATH    Output key path (default: ~/.ssh/6eniu5_id_ed25519)
   --vault-pass PASS     Vault password (optional; if omitted, ansible-vault will prompt)
   --known-hosts PATH   known_hosts file (default: ~/.ssh/known_hosts)
   --skip-known-hosts    Do not add github.com to known_hosts
@@ -123,6 +123,10 @@ fi
 
 echo "Done."
 
-if prompt_yes_no "Run optional SSH auth test (ssh -T git@github.com)?" n; then
-  ssh -T git@github.com || true
+if prompt_yes_no "Run optional SSH auth test (this key only, via ssh -i)?" n; then
+  if [[ -f "$OUTPUT_KEY" ]]; then
+    ssh -i "$OUTPUT_KEY" -o IdentitiesOnly=yes -T git@github.com || true
+  else
+    echo "Key not present at $OUTPUT_KEY; skipping test." >&2
+  fi
 fi
