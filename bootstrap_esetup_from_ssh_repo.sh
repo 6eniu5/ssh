@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ES_SETUP_URL="https://github.com/6eniu5/esetup.git"
-ES_SETUP_DIR="$HOME/esetup"
+ES_SETUP_DIR="${ESETUP_DIR:-$HOME/6eniu5/esetup}"
 VAULT_PASS=""
 VAULT_FILE="./id_ed25519.vault"
 ESETUP_SSH_IDENTITY="${ESETUP_SSH_IDENTITY:-$HOME/.ssh/6eniu5_id_ed25519}"
@@ -40,7 +40,7 @@ Usage: ./bootstrap_esetup_from_ssh_repo.sh [options]
 
 Options:
   --esetup-url URL           esetup git URL (default: https://github.com/6eniu5/esetup.git)
-  --esetup-dir DIR          Where to clone and run esetup (default: ~/esetup)
+  --esetup-dir DIR          Where to clone and run esetup (default: ~/6eniu5/esetup)
   --output-key PATH         Decrypted private key path (default: ~/.ssh/6eniu5_id_ed25519)
   --vault-pass PASS         ansible-vault password to decrypt id_ed25519.vault (optional)
   --vault-file PATH         Encrypted vault file (default: ./id_ed25519.vault)
@@ -49,6 +49,7 @@ Options:
   --help                    Show help
 
 Env:
+  ESETUP_DIR                Override esetup clone dir (same as --esetup-dir; default ~/6eniu5/esetup)
   ESETUP_SSH_IDENTITY       Same as --output-key if set (default ~/.ssh/6eniu5_id_ed25519)
 HELP
 }
@@ -227,6 +228,7 @@ main() {
   clone_esetup
   configure_git_ssh_for_esetup_repo
   export ESETUP_SSH_IDENTITY
+  export TARGET_DOTFILES="${TARGET_DOTFILES:-$HOME/6eniu5/dotfiles}"
   run_esetup
 
   log_info "All steps complete."

@@ -6,8 +6,8 @@ This repo contains an encrypted payload for a **dedicated** SSH private key at *
 
 Bootstrap and `esetup/setup.sh` set **per-repository** `git config core.sshCommand` on:
 
-- `~/dotfiles` (submodules: `kickstart.nvim`, `tmux-sessionizer`)
-- `~/esetup` (after clone, in the bootstrap script)
+- `~/6eniu5/dotfiles` (submodules: `kickstart.nvim`, `tmux-sessionizer`)
+- `~/6eniu5/esetup` (after clone, in the bootstrap script)
 
 That limits use of this key to those repos only. Your normal `ssh`, `scp`, and other Git repos keep using `~/.ssh/config` and the agent as before.
 
@@ -54,7 +54,7 @@ You can optionally pass a vault password:
 Options:
 
 - `--esetup-url URL` (default: https://github.com/6eniu5/esetup.git)
-- `--esetup-dir DIR` (default: ~/esetup)
+- `--esetup-dir DIR` (default: ~/6eniu5/esetup)
 - `--output-key PATH` (default: ~/.ssh/6eniu5_id_ed25519)
 - `--vault-pass PASS` (optional)
 - `--vault-file PATH` (default: ./id_ed25519.vault)
@@ -63,4 +63,8 @@ Options:
 
 Environment:
 
+- `ESETUP_DIR` — same as `--esetup-dir` (default `~/6eniu5/esetup`)
+- `TARGET_DOTFILES` — passed through to `esetup/setup.sh` (default `~/6eniu5/dotfiles`)
 - `ESETUP_SSH_IDENTITY` — same meaning as `--output-key`
+
+Tip: clone this repo under `~/6eniu5/ssh` so everything lives in `~/6eniu5/`.
