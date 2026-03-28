@@ -79,3 +79,44 @@ completions still work in fish as long as the paths above are sourced.
   fish.
 - Suppress the misleading zsh caveat output with
   `HOMEBREW_NO_ENV_HINTS=1`.
+
+---
+
+## Actionable caveats at end of install reference the wrong shell
+
+**Status:** Open  
+**Affects:** First run of `setup.sh` (before fish is the default shell)  
+**Related:** [Homebrew caveats target zsh instead of fish](#homebrew-caveats-target-zsh-instead-of-fish)
+
+### Problem
+
+After formula installation, Homebrew prints actionable caveat instructions
+(e.g. "add this line to your `~/.zshrc`", "run `eval` in your shell
+profile") that assume zsh is the active shell. Because the login shell is
+still zsh when `setup.sh` runs, these instructions consistently reference
+zsh config files and syntax instead of fish equivalents.
+
+This means a user following the printed instructions verbatim would be
+editing the wrong shell configuration — `.zshrc` or `.bash_profile`
+instead of `config.fish`.
+
+### Why it happens
+
+Same root cause as the completions issue: Homebrew detects the current
+shell (zsh) during `setup.sh` and tailors all caveat text — including
+actionable "add this to your profile" instructions — to that shell.
+
+### Current mitigation
+
+None. The `apply_known_caveat_actions` helper addresses completions paths
+but does not translate the ad-hoc shell-profile instructions that
+individual formulas emit.
+
+### Possible improvements
+
+- Translate zsh-targeted caveat actions into fish equivalents in
+  `apply_known_caveat_actions` (or a companion function).
+- Set `SHELL` to the fish binary path before running `brew install` so
+  Homebrew emits fish-appropriate instructions from the start.
+- Document common formula caveats and their fish equivalents in a
+  reference table that `setup.sh` can print at the end of the run.
