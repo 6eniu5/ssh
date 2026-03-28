@@ -2,8 +2,8 @@
 
 ## WezTerm cannot find "Cascadia Code Light"
 
-**Status:** Open  
-**Affects:** WezTerm after initial `setup.sh` + `stow`
+**Status:** Fixed (applied in `6eniu5/esetup`: `dotfiles/wezterm/.config/wezterm/wezterm.lua` — family `Cascadia Code` with `weight = "Light"`).  
+**Affects:** WezTerm after initial `setup.sh` + `stow` (before fix)
 
 ### Error
 
@@ -87,5 +87,4 @@ The wezterm config lives in:
 - **Stowed target:** `~/dotfiles/wezterm/.config/wezterm/wezterm.lua`
 - **Symlinked to:** `~/.config/wezterm/wezterm.lua`
 
-Update the source in `esetup/dotfiles/` so future bootstraps get the
-correct config, then re-run `stow` or manually update the live config.
+The source in `esetup/dotfiles/` has been updated; re-run `stow` or manually sync the live config under `~/6eniu5/dotfiles` / `~/.config/wezterm` if needed.
