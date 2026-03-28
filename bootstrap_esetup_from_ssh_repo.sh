@@ -171,7 +171,7 @@ decrypt_key() {
 
 _6eniu5_ssh_command() {
   # -F /dev/null: ignore ~/.ssh/config so its IdentityFile directives don't
-  #   override -i (see KNOWN_ISSUES.md "SSH key identity conflict").
+  #   override -i.
   echo "ssh -F /dev/null -i \"$ESETUP_SSH_IDENTITY\" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=\"$HOME/.ssh/known_hosts\""
 }
 
