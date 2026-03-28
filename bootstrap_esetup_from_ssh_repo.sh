@@ -109,6 +109,9 @@ ensure_ansible() {
   fi
 
   log_info "Installing ansible (provides ansible-vault)..."
+  if command -v fish >/dev/null 2>&1; then
+    SHELL="$(command -v fish)" export SHELL
+  fi
   brew install ansible
 }
 

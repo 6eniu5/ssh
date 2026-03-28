@@ -71,6 +71,9 @@ if ! command -v ansible-vault >/dev/null 2>&1; then
   echo "ansible-vault not found." >&2
   if command -v brew >/dev/null 2>&1; then
     echo "Installing ansible via Homebrew..."
+    if command -v fish >/dev/null 2>&1; then
+      SHELL="$(command -v fish)" export SHELL
+    fi
     brew install ansible
   else
     echo "Install ansible (provides ansible-vault) first." >&2
