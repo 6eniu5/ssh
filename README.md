@@ -2,6 +2,8 @@
 
 This repo contains an encrypted payload for a **dedicated** SSH private key at **`~/.ssh/6eniu5_id_ed25519`** (not `~/.ssh/id_ed25519`, so your default GitHub / SSH workflow elsewhere is unchanged).
 
+> **Adding another company/client identity?** See **[ADDING_AN_IDENTITY.md](ADDING_AN_IDENTITY.md)** — the step-by-step runbook for wiring a new folder-routed identity + its private `ssh-<initials>` key vault.
+
 ## How Git uses this key (no global SSH side effects)
 
 Bootstrap and `esetup/setup.sh` set **per-repository** `git config core.sshCommand` on:
