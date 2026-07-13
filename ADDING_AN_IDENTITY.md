@@ -41,8 +41,10 @@ Host github.com                 # default = personal
     IdentitiesOnly yes
 ```
 
-Global `~/.gitconfig` `user.*` = your personal identity. Everything below is the
-**per-identity** part you repeat.
+Global `~/.gitconfig` `user.*` = your personal identity, and it ends with
+`[include] path = ~/.config/git/local.inc` — an untracked, machine-local file
+where per-identity `includeIf` blocks live (so company routing never lands in the
+public dotfiles repo). Everything below is the **per-identity** part you repeat.
 
 ---
 
@@ -91,12 +93,20 @@ cat > ~/.config/git/${INITIALS}.inc <<EOF
     sshCommand = ssh -F /dev/null -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes -i ${KEY}
 EOF
 
+# Map the folder → that identity. Add it to the machine-local include, NOT via
+# `git config --global` — that writes into ~/.gitconfig, which is public via
+# dotfiles. ~/.gitconfig already ends with `[include] path = ~/.config/git/local.inc`.
 # Trailing slash = "this folder and everything under it".
-git config --global includeIf."gitdir:${WORK_DIR}/".path "~/.config/git/${INITIALS}.inc"
+cat >> ~/.config/git/local.inc <<EOF
+
+[includeIf "gitdir:${WORK_DIR}/"]
+    path = ~/.config/git/${INITIALS}.inc
+EOF
 ```
 
 `-F /dev/null` isolates the key so the personal `github.com` identity can't be
-offered first.
+offered first. `local.inc` is included **last** from `~/.gitconfig`, so a
+matched identity's email/key override the personal defaults for its folder.
 
 ### Step 3 — the private vault repo (copy ssh-jw as the template)
 
@@ -164,7 +174,8 @@ git -C "$WORK_DIR" init -q 2>/dev/null; \
 |---|---|
 | `~/.ssh/config` | personal default only — **never** touched per identity |
 | `~/.config/git/<initials>.inc` | this identity's commit name/email + `core.sshCommand` |
-| `~/.gitconfig` `[includeIf]` | binds the folder to that `.inc` |
+| `~/.config/git/local.inc` | untracked; the `includeIf` blocks binding folders → `.inc`s |
+| `~/.gitconfig` (public) | personal identity + `[include] local.inc` — no company specifics |
 | `ssh-<initials>` repo (private) | the encrypted key + its decrypt script |
 
 ## Restoring on a new machine
