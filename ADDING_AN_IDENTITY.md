@@ -2,7 +2,8 @@
 
 How to add a new company or client identity so its repos automatically use the
 right SSH key **and** the right commit name/email — while everything else stays
-personal. This is the repeatable version of how `ssh-jw` was set up.
+personal. For *why* it's shaped this way, read **[ARCHITECTURE.md](ARCHITECTURE.md)**
+first.
 
 ## The model (read once)
 
@@ -38,6 +39,7 @@ Host *
 Host github.com                 # default = personal
     User git
     IdentityFile ~/.ssh/id_ed25519
+    IdentityFile ~/.ssh/6eniu5_id_ed25519   # same key, path used on fresh machines
     IdentitiesOnly yes
 ```
 
@@ -108,17 +110,25 @@ EOF
 offered first. `local.inc` is included **last** from `~/.gitconfig`, so a
 matched identity's email/key override the personal defaults for its folder.
 
-### Step 3 — the private vault repo (copy ssh-jw as the template)
+> **Company not on github.com?** (GitHub Enterprise `github.<co>.com`, GitLab,
+> Bitbucket) — same steps, nothing extra in `~/.ssh/config`. The folder's
+> `core.sshCommand` carries the key to *any* host, and `-F /dev/null` +
+> `StrictHostKeyChecking=accept-new` handle the unknown host on first connect.
+> Just register the public key on that host, clone its URL into `$WORK_DIR`, and
+> in the Step 1 auth test swap `git@github.com` for the company host
+> (e.g. `git@github.acme.com`).
+
+### Step 3 — the private vault repo (scaffold from an existing one)
 
 ```bash
 gh repo create "${GH_OWNER}/${VAULT_REPO}" --private \
   -d "Encrypted SSH key vault — ${FULL_NAME} identity (ssh-{initials} convention)"
 
 mkdir -p "$VAULT_DIR" && cd "$VAULT_DIR"
-# reuse the proven scaffold from ssh-jw:
-cp ~/Documents/Projects/setup/ssh-jw/.gitignore .
-cp ~/Documents/Projects/setup/ssh-jw/decrypt_ssh_vault.sh .
-# then edit decrypt_ssh_vault.sh's default paths and README for THIS identity.
+# reuse the proven scaffold from any vault repo you already have:
+TEMPLATE="$HOME/Documents/Projects/setup/ssh-<existing-initials>"
+cp "$TEMPLATE/.gitignore" "$TEMPLATE/decrypt_ssh_vault.sh" .
+# then edit decrypt_ssh_vault.sh's default paths + the README for THIS identity.
 git init -q -b main
 git remote add origin "git@github.com:${GH_OWNER}/${VAULT_REPO}.git"
 ```
@@ -162,7 +172,7 @@ git -C "$WORK_DIR" init -q 2>/dev/null; \
 
 - [ ] Public key added to the client's GitHub account, `ssh -i` greets the right user
 - [ ] `~/.config/git/<initials>.inc` created (user + core.sshCommand)
-- [ ] `includeIf "gitdir:<folder>/"` added to `~/.gitconfig`
+- [ ] `includeIf "gitdir:<folder>/"` added to `~/.config/git/local.inc` (**not** `~/.gitconfig`)
 - [ ] Private `ssh-<initials>` repo created + scaffolded
 - [ ] Key encrypted with a strong, separate passphrase; `git status` shows only `*.vault`
 - [ ] Vault committed + pushed
