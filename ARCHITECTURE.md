@@ -1,23 +1,28 @@
 # Identity architecture — how `~/.ssh/config` and `~/.gitconfig` work together
 
 Managing several GitHub accounts (personal + one per company/client) from one Mac.
-The whole system rests on one idea: **two independent questions, answered by two
-different files, both switched by the same thing — the folder a repo lives in.**
+The whole system rests on one idea: **independent questions, answered by different
+files, all switched by the same thing — the folder a repo lives in.**
 
 To add a new company, see **[ADDING_AN_IDENTITY.md](ADDING_AN_IDENTITY.md)**. This
 doc explains *why* it's shaped the way it is.
 
-## The two questions
+## The questions
 
 | Question | Meaning | Controlled by |
 |---|---|---|
 | **"Who does the server think I am?"** | *Authentication* — which account may push/pull | the **SSH key** offered → `~/.ssh/config`, or git's `core.sshCommand` |
 | **"Whose name is on the commit?"** | *Authorship* — the `Author:` stamped into history | `user.name` / `user.email` → `~/.gitconfig`, or an `includeIf` |
+| **"Who does the *API* think I am?"** | The `gh` CLI's active account — which repos it can even see | `GH_CONFIG_DIR` → a per-identity `gh` config dir, chosen by a shell `cd` hook |
 
-These are **independent** — you can authenticate as one account and author commits
-as another. Almost every "wrong identity" bug is these two drifting apart (commit
-as personal, push over the company key, or vice-versa). The system's only job is
-to **keep them aligned per context, automatically.**
+These are **independent** — you can authenticate as one account, author commits as
+another, and have `gh` answer as a third. Almost every "wrong identity" bug is them
+drifting apart (commit as personal, push over the company key, or vice-versa). The
+system's only job is to **keep them aligned per context, automatically.**
+
+The first two are git's, and git has native folder awareness (`includeIf`) to
+resolve them. The third is not git's at all, and `gh` has no folder awareness —
+which is why it needs its own mechanism to reach the same answer.
 
 ## What each file is responsible for
 
@@ -56,6 +61,39 @@ Put a repo in the client folder → it's company in both senses; anywhere else �
 personal. `-F /dev/null` is what stops the two layers from fighting: git's override
 wins cleanly instead of both keys being offered to the server.
 
+### The third layer — `gh`, which has no folder awareness
+
+Everything above is git resolving *its own* config, so `includeIf` can key on the
+repo's path. The `gh` CLI never consults git config. It keeps **one active account
+per host** in its own config file, and that account is a global mode — `gh auth
+switch` flips it for every directory at once.
+
+That makes `gh` the one place where the folder switch does not come for free, and
+its failure is the nastiest in the system:
+
+> A wrong-account `gh` **fails silently**. GitHub reports private or internal repos
+> you can't see as `Could not resolve to a Repository` — not as an auth error. The
+> work simply appears not to exist, which reads as "wrong URL", not "wrong identity".
+
+The fix keeps the same shape as the git layers: instead of one config with a
+switchable account, give **each identity its own `gh` config dir**, and let the
+folder select it. `GH_CONFIG_DIR` points `gh` at a separate account store, so two
+identities can never shadow each other — there is no shared mode to leave flipped.
+
+Selection is a shell `cd` hook rather than a git mechanism, because `gh` is
+invoked by the shell, not by git. That has one consequence worth stating plainly:
+**the hook must exist in every shell, including non-interactive ones.** A script,
+a GUI-launched tool or an agent's tool shell that misses the hook runs unrouted,
+and unrouted means personal — silently, per the warning above.
+
+**The `.inc` bridges the two layers.** HTTPS remotes take a second auth path that
+`core.sshCommand` does not cover: git asks a **credential helper**, and the public
+`~/.gitconfig` points that at `gh auth git-credential` — which resolves via
+`GH_CONFIG_DIR`, i.e. by *shell*, not by folder. So a per-identity `.inc` pins the
+helper to that identity's config dir. That pin is what drags `gh`'s shell-scoped
+answer back under the folder switch, restoring the invariant for contexts that
+never run your shell config at all.
+
 ### Why `includeIf` lives in a file included *last*
 
 Git reads config top-to-bottom, and later values win. The personal `[user]` sits in
@@ -77,9 +115,9 @@ config is untracked-local; only shared, non-revealing config is public. Three ti
 
 | Tier | What lives here | Examples |
 |---|---|---|
-| 🟢 **Public** (`dotfiles` repo) | Shared, no secrets, reveals no client relationships | `~/.ssh/config` (key *paths*, never keys); `~/.gitconfig` (personal identity + a **generic** `[include] local.inc`) |
-| 🟡 **Untracked local** (in `$HOME`, in no repo) | Benign but reveals *which* clients you work with, or is machine-specific | `~/.config/git/local.inc` (the `includeIf` folder→identity map); `~/.config/git/<initials>.inc` (per-identity email + key path) |
-| 🔴 **Private / encrypted** | Actual secrets | private keys `~/.ssh/*`; `ansible-vault` ciphertext in **private** `ssh-<initials>` repos (personal is the one exception — a public repo, but its key is encrypted for bootstrap) |
+| 🟢 **Public** (`dotfiles` repo) | Shared, no secrets, reveals no client relationships | `~/.ssh/config` (key *paths*, never keys); `~/.gitconfig` (personal identity + a **generic** `[include] local.inc`, and the generic `gh auth git-credential` helper) |
+| 🟡 **Untracked local** (in `$HOME`, in no repo) | Benign but reveals *which* clients you work with, or is machine-specific | `~/.config/git/local.inc` (the `includeIf` folder→identity map); `~/.config/git/<initials>.inc` (per-identity email, key path, pinned credential helper); `~/.config/fish/conf.d/gh-identity.fish` + `~/.config/zsh/gh-identity.zsh` (the folder→`GH_CONFIG_DIR` map) |
+| 🔴 **Private / encrypted** | Actual secrets | private keys `~/.ssh/*`; `~/.config/gh-<name>/` (per-identity `gh` OAuth tokens — never in any repo); `ansible-vault` ciphertext in **private** `ssh-<initials>` repos (personal is the one exception — a public repo, but its key is encrypted for bootstrap) |
 
 The subtle trap this guards against: **`~/.gitconfig` is a stow symlink into the
 *public* `dotfiles` repo**, so `git config --global …` writes to a public file.
@@ -89,15 +127,34 @@ the public gitconfig carries only the generic `[include]` of it. The public repo
 never learns which companies you work with; that fact lives only on your disk and
 in the private `ssh-<initials>` repo.
 
+The `gh` hooks repeat that split exactly, and for the same reason:
+`~/.config/fish/config.fish` is also a stow symlink into the public repo, while
+`conf.d/` is a real, untracked directory — so the folder→identity map goes in
+`conf.d/`, never in `config.fish`. The zsh twin is sourced from `~/.zshenv` rather
+than `~/.zshrc`, because `.zshrc` is skipped for non-interactive zsh and an
+unrouted shell falls back to personal.
+
+> **One thing outranks all of it:** an exported `GH_TOKEN` / `GITHUB_TOKEN` beats
+> `GH_CONFIG_DIR` outright. A token in your public shell config is a global
+> override that silently defeats every folder switch above.
+
 ## Why it all survives a new machine
 
 - 🟢 returns via `./install` (GNU stow) — public, no secrets.
 - 🔴 keys return by cloning the vault repos + `decrypt_ssh_vault.sh` (personal from
   the public `ssh` repo, then each private `ssh-<initials>`).
-- 🟡 `local.inc` + `<initials>.inc` are recreated by following
-  [ADDING_AN_IDENTITY.md](ADDING_AN_IDENTITY.md) — a few non-secret lines, so a
-  runbook is enough; they never need to be tracked.
+- 🟡 `local.inc`, `<initials>.inc` and both `gh-identity` hooks are recreated by
+  following [ADDING_AN_IDENTITY.md](ADDING_AN_IDENTITY.md) — a few non-secret
+  lines, so a runbook is enough; they never need to be tracked.
+- The `gh` accounts themselves don't restore from anything: 🔴 tokens are not
+  backed up by design. You re-run `gh auth login` once per identity against its
+  own `GH_CONFIG_DIR`.
 
 Net effect: public repos are safe to be public, secrets sit behind private access
 *and* a passphrase, and the "who am I here" wiring reassembles from a documented
 runbook — no single leak exposes a key **or** a client relationship.
+
+The cost is that the folder→identity map is now written in **three** places: the
+`includeIf` in `local.inc` and the two shell hooks. Nothing checks them against
+each other, and drift shows up only as the personal account quietly answering in
+whichever shell was missed. Consolidating them is the obvious next move.
