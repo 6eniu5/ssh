@@ -2,7 +2,7 @@
 set -euo pipefail
 
 VAULT_FILE="./id_ed25519.vault"
-OUTPUT_KEY="$HOME/.ssh/6eniu5_id_ed25519"
+OUTPUT_KEY="$HOME/.ssh/kernvex_id_ed25519"
 VAULT_PASS=""
 KNOWN_HOSTS_FILE="$HOME/.ssh/known_hosts"
 
@@ -30,7 +30,7 @@ Usage: ./decrypt_ssh_vault.sh [options]
 
 Options:
   --vault-file PATH     Encrypted vault file (default: ./id_ed25519.vault)
-  --output-key PATH    Output key path (default: ~/.ssh/6eniu5_id_ed25519)
+  --output-key PATH    Output key path (default: ~/.ssh/kernvex_id_ed25519)
   --vault-pass PASS     Vault password (optional; if omitted, ansible-vault will prompt)
   --known-hosts PATH   known_hosts file (default: ~/.ssh/known_hosts)
   --skip-known-hosts    Do not add github.com to known_hosts

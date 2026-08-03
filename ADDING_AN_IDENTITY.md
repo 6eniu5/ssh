@@ -42,7 +42,7 @@ Host *
 Host github.com                 # default = personal
     User git
     IdentityFile ~/.ssh/id_ed25519
-    IdentityFile ~/.ssh/6eniu5_id_ed25519   # same key, path used on fresh machines
+    IdentityFile ~/.ssh/kernvex_id_ed25519   # same key, path used on fresh machines
     IdentitiesOnly yes
 ```
 

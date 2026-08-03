@@ -32,7 +32,7 @@ offered to a host. It knows nothing about git authorship. It sets the **default*
 ```sshconfig
 Host github.com                 # personal is the default
     IdentityFile ~/.ssh/id_ed25519
-    IdentityFile ~/.ssh/6eniu5_id_ed25519   # same key, alt path on fresh machines
+    IdentityFile ~/.ssh/kernvex_id_ed25519   # same key, alt path on fresh machines
     IdentitiesOnly yes          # offer ONLY these, ignore whatever the agent holds
 ```
 

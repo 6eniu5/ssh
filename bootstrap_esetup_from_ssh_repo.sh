@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ES_SETUP_URL="https://github.com/6eniu5/esetup.git"
-ES_SETUP_DIR="${ESETUP_DIR:-$HOME/6eniu5/esetup}"
+ES_SETUP_URL="https://github.com/kernvex/esetup.git"
+ES_SETUP_DIR="${ESETUP_DIR:-$HOME/kernvex/esetup}"
 VAULT_PASS=""
 VAULT_FILE="./id_ed25519.vault"
-ESETUP_SSH_IDENTITY="${ESETUP_SSH_IDENTITY:-$HOME/.ssh/6eniu5_id_ed25519}"
+ESETUP_SSH_IDENTITY="${ESETUP_SSH_IDENTITY:-$HOME/.ssh/kernvex_id_ed25519}"
 
 SKIP_DECRYPT=0
 SKIP_RUN_SETUP=0
@@ -39,9 +39,9 @@ usage() {
 Usage: ./bootstrap_esetup_from_ssh_repo.sh [options]
 
 Options:
-  --esetup-url URL           esetup git URL (default: https://github.com/6eniu5/esetup.git)
-  --esetup-dir DIR          Where to clone and run esetup (default: ~/6eniu5/esetup)
-  --output-key PATH         Decrypted private key path (default: ~/.ssh/6eniu5_id_ed25519)
+  --esetup-url URL           esetup git URL (default: https://github.com/kernvex/esetup.git)
+  --esetup-dir DIR          Where to clone and run esetup (default: ~/kernvex/esetup)
+  --output-key PATH         Decrypted private key path (default: ~/.ssh/kernvex_id_ed25519)
   --vault-pass PASS         ansible-vault password to decrypt id_ed25519.vault (optional)
   --vault-file PATH         Encrypted vault file (default: ./id_ed25519.vault)
   --skip-decrypt            Skip key decryption step
@@ -49,8 +49,8 @@ Options:
   --help                    Show help
 
 Env:
-  ESETUP_DIR                Override esetup clone dir (same as --esetup-dir; default ~/6eniu5/esetup)
-  ESETUP_SSH_IDENTITY       Same as --output-key if set (default ~/.ssh/6eniu5_id_ed25519)
+  ESETUP_DIR                Override esetup clone dir (same as --esetup-dir; default ~/kernvex/esetup)
+  ESETUP_SSH_IDENTITY       Same as --output-key if set (default ~/.ssh/kernvex_id_ed25519)
 HELP
 }
 
@@ -169,7 +169,7 @@ decrypt_key() {
   "$decrypt_script" "${args[@]}"
 }
 
-_6eniu5_ssh_command() {
+_kernvex_ssh_command() {
   # -F /dev/null: ignore ~/.ssh/config so its IdentityFile directives don't
   #   override -i.
   echo "ssh -F /dev/null -i \"$ESETUP_SSH_IDENTITY\" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=\"$HOME/.ssh/known_hosts\""
@@ -184,7 +184,7 @@ configure_git_ssh_for_repo() {
     return 0
   fi
   log_info "Configuring ${repo_dir} git to use ${ESETUP_SSH_IDENTITY} for SSH (per-repo only)."
-  git -C "$repo_dir" config core.sshCommand "$(_6eniu5_ssh_command)"
+  git -C "$repo_dir" config core.sshCommand "$(_kernvex_ssh_command)"
 }
 
 clone_esetup() {
@@ -250,7 +250,7 @@ main() {
   clone_esetup
   configure_git_ssh_for_repo "$ES_SETUP_DIR"
   export ESETUP_SSH_IDENTITY
-  export TARGET_DOTFILES="${TARGET_DOTFILES:-$HOME/6eniu5/dotfiles}"
+  export TARGET_DOTFILES="${TARGET_DOTFILES:-$HOME/kernvex/dotfiles}"
   run_esetup
 
   log_info "All steps complete."
