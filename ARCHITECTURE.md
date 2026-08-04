@@ -116,8 +116,8 @@ config is untracked-local; only shared, non-revealing config is public. Three ti
 | Tier | What lives here | Examples |
 |---|---|---|
 | 🟢 **Public** (`dotfiles` repo) | Shared, no secrets, reveals no client relationships | `~/.ssh/config` (key *paths*, never keys); `~/.gitconfig` (personal identity + a **generic** `[include] local.inc`, and the generic `gh auth git-credential` helper) |
-| 🟡 **Untracked local** (in `$HOME`, in no repo) | Benign but reveals *which* clients you work with, or is machine-specific | `~/.config/git/local.inc` (the `includeIf` folder→identity map); `~/.config/git/<initials>.inc` (per-identity email, key path, pinned credential helper); `~/.config/fish/conf.d/gh-identity.fish` + `~/.config/zsh/gh-identity.zsh` (the folder→`GH_CONFIG_DIR` map) |
-| 🔴 **Private / encrypted** | Actual secrets | private keys `~/.ssh/*`; `~/.config/gh-<name>/` (per-identity `gh` OAuth tokens — never in any repo); `ansible-vault` ciphertext in **private** `ssh-<initials>` repos (personal is the one exception — a public repo, but its key is encrypted for bootstrap) |
+| 🟡 **Generated, machine-local** (in `$HOME`, in no repo) | Benign but reveals *which* clients you work with, or is machine-specific | `~/.config/git/local.inc` (the `includeIf` folder→identity map); `~/.config/git/<slug>.inc` (per-identity email, key path, pinned credential helper); `~/.config/fish/conf.d/identity-routing.fish` + `~/.config/zsh/identity-routing.zsh` (the folder→per-CLI config-dir map) |
+| 🔴 **Private** | The data 🟡 is generated from, and actual secrets | a **private** repo holding one data file per identity **plus** `ansible-vault` ciphertext for every non-personal key; live private keys `~/.ssh/*`; `~/.config/gh-<slug>/` and the other per-identity CLI config dirs (OAuth tokens — never in any repo). Personal is the one exception: a public repo whose key is encrypted, because it must be reachable *before* you can clone anything private |
 
 The subtle trap this guards against: **`~/.gitconfig` is a stow symlink into the
 *public* `dotfiles` repo**, so `git config --global …` writes to a public file.
@@ -125,9 +125,9 @@ That's fine for your personal identity (already public) but would leak company
 routing. Hence company `includeIf` blocks live in 🟡 `~/.config/git/local.inc`, and
 the public gitconfig carries only the generic `[include]` of it. The public repo
 never learns which companies you work with; that fact lives only on your disk and
-in the private `ssh-<initials>` repo.
+in the private identity repo.
 
-The `gh` hooks repeat that split exactly, and for the same reason:
+The CLI hooks repeat that split exactly, and for the same reason:
 `~/.config/fish/config.fish` is also a stow symlink into the public repo, while
 `conf.d/` is a real, untracked directory — so the folder→identity map goes in
 `conf.d/`, never in `config.fish`. The zsh twin is sourced from `~/.zshenv` rather
@@ -141,20 +141,31 @@ unrouted shell falls back to personal.
 ## Why it all survives a new machine
 
 - 🟢 returns via `./install` (GNU stow) — public, no secrets.
-- 🔴 keys return by cloning the vault repos + `decrypt_ssh_vault.sh` (personal from
-  the public `ssh` repo, then each private `ssh-<initials>`).
-- 🟡 `local.inc`, `<initials>.inc` and both `gh-identity` hooks are recreated by
-  following [ADDING_AN_IDENTITY.md](ADDING_AN_IDENTITY.md) — a few non-secret
-  lines, so a runbook is enough; they never need to be tracked.
-- The `gh` accounts themselves don't restore from anything: 🔴 tokens are not
-  backed up by design. You re-run `gh auth login` once per identity against its
-  own `GH_CONFIG_DIR`.
+- 🔴 the personal key returns from this repo (encrypted, the bootstrap exception);
+  every other key returns by cloning the private identity repo and decrypting its
+  vaults, which that repo's own restore command drives.
+- 🟡 is **regenerated**, not restored: it is output of the 🔴 data. Without access
+  to that repo it can still be rebuilt by hand from
+  [ADDING_AN_IDENTITY.md](ADDING_AN_IDENTITY.md), which is why that runbook is
+  deliberately kept working rather than reduced to a pointer.
+- The CLI accounts themselves don't restore from anything: 🔴 tokens are not
+  backed up by design. You re-run `auth login` once per identity per CLI, against
+  that identity's own config dir.
 
 Net effect: public repos are safe to be public, secrets sit behind private access
-*and* a passphrase, and the "who am I here" wiring reassembles from a documented
-runbook — no single leak exposes a key **or** a client relationship.
+*and* a passphrase, and the "who am I here" wiring reassembles from data — no
+single leak exposes a key **or** a client relationship.
 
-The cost is that the folder→identity map is now written in **three** places: the
-`includeIf` in `local.inc` and the two shell hooks. Nothing checks them against
-each other, and drift shows up only as the personal account quietly answering in
-whichever shell was missed. Consolidating them is the obvious next move.
+### The cost this used to carry
+
+The folder→identity map was written in **three** places — the `includeIf` in
+`local.inc` and the two shell hooks — with a per-CLI config dir alongside each.
+Nothing checked them against each other, and drift showed up only as the personal
+account quietly answering in whichever shell was missed.
+
+That is now resolved by generating all of 🟡 from a single data file per identity,
+and by shipping a **checker** rather than only a generator. The checker asserts
+routing in both directions: that work folders resolve to their identity, *and*
+that everything outside them resolves to personal. The second half matters more
+than it looks — the default is the case nobody inspects, and every failure in this
+system is silent.
